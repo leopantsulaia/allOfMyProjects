@@ -7,6 +7,7 @@ interface PreviewPaneProps {
   folderPath: string;
   initialPreviewPath?: string;
   hasPackageJson: boolean;
+  height?: string;
 }
 
 export function PreviewPane({
@@ -14,6 +15,7 @@ export function PreviewPane({
   folderPath,
   initialPreviewPath,
   hasPackageJson,
+  height = "450px",
 }: PreviewPaneProps) {
   const [previewAvailable, setPreviewAvailable] = useState(!!initialPreviewPath);
   const [isBuilding, setIsBuilding] = useState(false);
@@ -196,7 +198,7 @@ export function PreviewPane({
       <div
         style={{
           flexGrow: 1,
-          height: isFullscreen ? "calc(100vh - 57px)" : "550px",
+          height: isFullscreen ? "calc(100vh - 57px)" : height,
           position: "relative",
           background: "#0d1117",
         }}
@@ -212,6 +214,7 @@ export function PreviewPane({
               background: "#ffffff", // white background for the web app inside iframe
             }}
             sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+            loading="lazy"
           />
         ) : (
           <div
