@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { getProjectList, type ProjectInfo } from "@/lib/projects";
-import { LaunchControls } from "@/components/LaunchControls";
 import { PreviewPane } from "@/components/PreviewPane";
 
 function renderScriptList(scripts: string[]) {
@@ -59,8 +58,44 @@ export default async function ProjectPage({
           </div>
 
           <div className="button-row" style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
-            <LaunchControls folderPath={project.folderPath} />
-            {project.liveUrlGuess ? (
+            <a
+              className="project-link"
+              href={`/preview/${project.id}`}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                padding: "0.65rem 1.2rem",
+                borderRadius: "999px",
+                fontSize: "0.9rem",
+                fontWeight: "600",
+                background: "rgba(59, 130, 246, 0.18)",
+                border: "1px solid rgba(59, 130, 246, 0.4)",
+                color: "#bfdbfe",
+                textDecoration: "none",
+                transition: "all 0.2s ease",
+              }}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ marginRight: "2px" }}
+              >
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+              Launch Preview in New Tab
+            </a>
+            {project.liveUrlGuess && (
               <a
                 className="project-link"
                 href={project.liveUrlGuess}
@@ -98,8 +133,6 @@ export default async function ProjectPage({
                 </svg>
                 Open Web App
               </a>
-            ) : (
-              <span className="project-link disabled">Launch URL unknown</span>
             )}
           </div>
 
