@@ -1,7 +1,7 @@
 :root {
   color-scheme: dark;
-  color: #e6edf3;
-  background: #070b15;
+  color: #d4d4d4;
+  background: #1e1e1e;
   font-family:
     Inter,
     ui-sans-serif,
@@ -26,14 +26,7 @@ body {
 }
 
 body {
-  background:
-    radial-gradient(circle at top, rgba(59, 130, 246, 0.15), transparent 25%),
-    radial-gradient(
-      circle at bottom right,
-      rgba(236, 72, 153, 0.14),
-      transparent 22%
-    ),
-    #070b15;
+  background: #181818;
 }
 
 img,
@@ -52,10 +45,9 @@ svg {
   display: grid;
   gap: 1.5rem;
   padding: 2.5rem 2rem;
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  border-radius: 1.5rem;
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(16px);
+  border: 1px solid #3c3c3c;
+  border-radius: 0.75rem;
+  background: #252526;
 }
 
 .eyebrow {
@@ -63,19 +55,20 @@ svg {
   font-size: 0.9rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #93c5fd;
+  color: #4fc1ff;
 }
 
 .hero h1 {
   margin: 0;
-  font-size: clamp(2.75rem, 4vw, 4rem);
-  line-height: 1.02;
+  font-size: clamp(2.5rem, 4vw, 3.5rem);
+  line-height: 1.05;
+  color: #ffffff;
 }
 
 .hero p {
   max-width: 55ch;
   margin: 1.25rem 0 0;
-  color: #cbd5e1;
+  color: #cccccc;
 }
 
 .content-block {
@@ -92,21 +85,23 @@ svg {
 
 .section-header h2 {
   margin: 0;
-  font-size: 2rem;
+  font-size: 2.0rem;
+  color: #ffffff;
 }
 
 .status-pill {
   display: inline-flex;
-  padding: 0.85rem 1rem;
-  border-radius: 999px;
-  background: rgba(59, 130, 246, 0.18);
-  color: #bfdbfe;
-  font-size: 0.95rem;
+  padding: 0.65rem 1rem;
+  border-radius: 4px;
+  background: #2d2d2d;
+  border: 1px solid #3c3c3c;
+  color: #cccccc;
+  font-size: 0.9rem;
 }
 
 .grid {
   display: grid;
-  gap: 1.25rem;
+  gap: 1.5rem;
   grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
   margin-top: 1.75rem;
 }
@@ -114,14 +109,10 @@ svg {
 .card {
   position: relative;
   padding: 1.5rem;
-  border-radius: 1.5rem;
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  background: linear-gradient(
-    180deg,
-    rgba(15, 23, 42, 0.92),
-    rgba(15, 23, 42, 0.82)
-  );
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.18);
+  border-radius: 0.75rem;
+  border: 1px solid #2d2d2d;
+  background: #1e1e1e;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
   transition:
     transform 0.25s ease,
     border-color 0.25s ease,
@@ -129,9 +120,9 @@ svg {
 }
 
 .card:hover {
-  transform: translateY(-4px);
-  border-color: rgba(59, 130, 246, 0.28);
-  box-shadow: 0 38px 90px rgba(0, 0, 0, 0.25);
+  transform: translateY(-2px);
+  border-color: #007acc;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.35);
 }
 
 .card-header {
