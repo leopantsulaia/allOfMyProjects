@@ -36,6 +36,7 @@ export async function GET(
 ) {
   try {
     const { projectId, file } = params;
+    const cleanFile = file ? file.filter((segment) => segment !== "") : [];
     const projects = await getProjectList();
     const project = projects.find((p) => p.id === projectId);
 
@@ -49,8 +50,8 @@ export async function GET(
 
     // Build the file path relative to the base directory
     let fileRelativePath = "";
-    if (file && file.length > 0) {
-      fileRelativePath = file.join("/");
+    if (cleanFile.length > 0) {
+      fileRelativePath = cleanFile.join("/");
     } else if (project.previewPath) {
       fileRelativePath = path.basename(project.previewPath);
     } else {
@@ -60,8 +61,18 @@ export async function GET(
     let resolvedPath = path.resolve(baseDir, fileRelativePath);
 
     // Security check: ensure path is within the project base directory
-    if (!resolvedPath.startsWith(baseDir)) {
+    const normalizedResolved = resolvedPath.toLowerCase().replace(/\\/g, "/") + "/";
+    const normalizedBaseDir = baseDir.toLowerCase().replace(/\\/g, "/") + "/";
+    if (!normalizedResolved.startsWith(normalizedBaseDir)) {
       return new Response("Access Denied", { status: 403 });
+    }
+
+    // Check if path is a directory and has index.html
+    if (fs.existsSync(resolvedPath) && fs.statSync(resolvedPath).isDirectory()) {
+      const indexHtmlPath = path.join(resolvedPath, "index.html");
+      if (fs.existsSync(indexHtmlPath)) {
+        resolvedPath = indexHtmlPath;
+      }
     }
 
     // Check if path exists. If not and it has no extension, fallback to main index.html for SPA router support

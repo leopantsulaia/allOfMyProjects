@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { getProjectList, type ProjectInfo } from "@/lib/projects";
 import { PreviewPane } from "@/components/PreviewPane";
 
+export const dynamic = "force-dynamic";
+
 function renderScriptList(scripts: string[]) {
   if (scripts.length === 0) {
     return <p>No npm scripts detected.</p>;
@@ -60,7 +62,7 @@ export default async function ProjectPage({
           <div className="button-row" style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
             <a
               className="project-link"
-              href={`/preview/${project.id}`}
+              href={`/preview/${project.id}/`}
               target="_blank"
               rel="noreferrer"
               style={{

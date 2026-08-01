@@ -17,7 +17,7 @@ export function ProjectCard({ project }: { project: ProjectInfo }) {
         <li>
           Folder:{" "}
           <a
-            href={`/preview/${project.id}`}
+            href={`/preview/${project.id}/`}
             target="_blank"
             rel="noreferrer"
             style={{ color: "#60a5fa", textDecoration: "none", fontWeight: "600" }}

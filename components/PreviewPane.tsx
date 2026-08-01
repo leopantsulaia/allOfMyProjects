@@ -54,10 +54,11 @@ export function PreviewPane({
     setIframeKey((prev) => prev + 1);
   };
 
-  const previewUrl = `/preview/${projectId}`;
+  const previewUrl = `/preview/${projectId}/`;
 
   return (
     <div
+      className={isFullscreen ? "preview-fullscreen" : ""}
       style={{
         marginTop: "2rem",
         border: "1px solid rgba(148, 163, 184, 0.12)",

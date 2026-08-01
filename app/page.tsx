@@ -1,6 +1,8 @@
 import { getProjectList } from "@/lib/projects";
 import { ProjectGrid } from "@/components/ProjectGrid";
 
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const projects = await getProjectList();
 

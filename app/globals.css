@@ -278,3 +278,23 @@ svg {
   }
 }
 
+/* Fullscreen styling for PreviewPane inside transform-active cards */
+.card:has(.preview-fullscreen) {
+  transform: none !important;
+  transition: none !important;
+  z-index: 9999 !important;
+  position: static !important;
+}
+
+.preview-fullscreen {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 99999 !important;
+  margin-top: 0 !important;
+  border-radius: 0 !important;
+  border: none !important;
+}
+

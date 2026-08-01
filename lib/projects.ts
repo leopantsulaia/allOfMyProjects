@@ -52,11 +52,7 @@ function readJson(filePath: string) {
 }
 
 function normalizeTag(tag: string) {
-  return tag
-    .replace(/react|next|vite|typescript|javascript|python/gi, (match) =>
-      match.toUpperCase(),
-    )
-    .replace(/[^A-Za-z0-9+-]/g, "");
+  return tag.trim();
 }
 
 function detectLiveUrl(pkg: Record<string, unknown> | null) {
