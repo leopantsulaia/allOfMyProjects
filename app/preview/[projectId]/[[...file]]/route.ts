@@ -45,8 +45,19 @@ export async function GET(
     }
 
     // Determine the base preview directory
-    const relativeDir = project.previewPath ? path.dirname(project.previewPath) : ".";
-    const baseDir = path.resolve(project.folderPath, relativeDir);
+    let relativeDir = project.previewPath ? path.dirname(project.previewPath) : ".";
+    let baseDir = path.resolve(project.folderPath, relativeDir);
+
+    // If static preview not set, try common public or build dirs
+    if (!project.previewPath) {
+      const candidates = ["build", "dist", "out", "public", "."];
+      for (const c of candidates) {
+        if (fs.existsSync(path.join(project.folderPath, c, "index.html"))) {
+          baseDir = path.join(project.folderPath, c);
+          break;
+        }
+      }
+    }
 
     // Build the file path relative to the base directory
     let fileRelativePath = "";
@@ -79,7 +90,6 @@ export async function GET(
     if (!fs.existsSync(resolvedPath) || fs.statSync(resolvedPath).isDirectory()) {
       const ext = path.extname(fileRelativePath);
       if (!ext) {
-        // SPA routing fallback
         const mainIndexName = project.previewPath ? path.basename(project.previewPath) : "index.html";
         const fallbackIndex = path.resolve(baseDir, mainIndexName);
         if (fs.existsSync(fallbackIndex)) {
@@ -97,8 +107,10 @@ export async function GET(
     if (contentType === "text/html") {
       let htmlContent = fs.readFileSync(resolvedPath, "utf8");
 
+      // Replace %PUBLIC_URL% placeholders if CRA template was served directly
+      htmlContent = htmlContent.replace(/%PUBLIC_URL%/g, `/preview/${projectId}`);
+
       // Rewrite absolute asset references starting with '/' (e.g. src="/assets/main.js")
-      // to resolve correctly under the dynamic preview prefix '/preview/[projectId]/...'
       const prefix = `/preview/${projectId}`;
       htmlContent = htmlContent.replace(
         /(src|href|content)=["']\/([^"']*)["']/g,
@@ -127,7 +139,6 @@ export async function GET(
     return new Response(fileBuffer, {
       headers: {
         "Content-Type": contentType,
-        // Disable aggressive caching for local development previews
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
       },
     });

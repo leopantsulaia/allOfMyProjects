@@ -1,12 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+type Status = "stopped" | "installing" | "starting" | "ready" | "error";
+
+interface ServerState {
+  status: Status;
+  url?: string;
+  port?: number;
+  error?: string;
+  logs?: string[];
+}
 
 interface PreviewPaneProps {
   projectId: string;
   folderPath: string;
   initialPreviewPath?: string;
-  hasPackageJson: boolean;
+  canLaunch: boolean;
+  scripts?: string[];
   height?: string;
 }
 
@@ -14,319 +25,201 @@ export function PreviewPane({
   projectId,
   folderPath,
   initialPreviewPath,
-  hasPackageJson,
-  height = "450px",
+  canLaunch,
+  height = "420px",
 }: PreviewPaneProps) {
-  const [previewAvailable, setPreviewAvailable] = useState(!!initialPreviewPath);
-  const [isBuilding, setIsBuilding] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [server, setServer] = useState<ServerState>({ status: "stopped" });
+  const [showStatic, setShowStatic] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
+  const logRef = useRef<HTMLPreElement>(null);
 
-  const handleBuild = async () => {
-    setIsBuilding(true);
-    setError(null);
+  const fetchStatus = useCallback(async () => {
     try {
-      const response = await fetch("/api/build", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ folderPath }),
-      });
-
-      const data = await response.json();
-      if (response.ok && data.success) {
-        setPreviewAvailable(true);
-        // Force iframe reload by changing key
-        setIframeKey((prev) => prev + 1);
-      } else {
-        setError(data.details || data.error || "Failed to build the project.");
+      const res = await fetch(`/api/server?projectId=${encodeURIComponent(projectId)}`, { cache: "no-store" });
+      const data: ServerState = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || `Status request failed (${res.status})`);
       }
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred during the build.");
+      setServer(data);
+      return data.status;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not read project status.";
+      setServer({ status: "error", error: message });
+      return "error" as Status;
+    }
+  }, [projectId]);
+
+  // Initial status check (in case a server is already running)
+  useEffect(() => {
+    fetchStatus();
+  }, [fetchStatus]);
+
+  // Poll while installing / starting
+  useEffect(() => {
+    if (server.status !== "installing" && server.status !== "starting") return;
+    const t = setInterval(fetchStatus, 1200);
+    return () => clearInterval(t);
+  }, [server.status, fetchStatus]);
+
+  // Auto-scroll log
+  useEffect(() => {
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+  }, [server.logs]);
+
+  // Esc exits fullscreen
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setFullscreen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [fullscreen]);
+
+  const start = async () => {
+    setBusy(true);
+    setShowStatic(false);
+    try {
+      const res = await fetch("/api/server", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "start", projectId, folderPath }),
+      });
+      const data = await res.json();
+      if (!res.ok) setServer({ status: "error", error: data.error });
+      else setServer(data);
+    } catch (e: any) {
+      setServer({ status: "error", error: e.message });
     } finally {
-      setIsBuilding(false);
+      setBusy(false);
     }
   };
 
-  const handleRefresh = () => {
-    setIframeKey((prev) => prev + 1);
+  const stop = async () => {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/server", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "stop", projectId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Stop request failed (${res.status})`);
+      setServer({ status: "stopped" });
+      setFullscreen(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not stop the project.";
+      setServer((current) => ({ ...current, status: "error", error: message }));
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const previewUrl = `/preview/${projectId}/`;
+  const isLive = server.status === "ready" && !!server.url;
+  const isWorking = server.status === "installing" || server.status === "starting";
+  const iframeUrl = isLive ? server.url! : showStatic ? `/preview/${projectId}/` : null;
+
+  const statusLabel: Record<Status, string> = {
+    stopped: initialPreviewPath ? "Idle · build available" : "Idle",
+    installing: "Installing dependencies…",
+    starting: "Starting dev server…",
+    ready: `Live · localhost:${server.port}`,
+    error: "Failed",
+  };
+
+  const dotClass =
+    server.status === "ready" ? "dot dot-live" :
+    isWorking ? "dot dot-busy" :
+    server.status === "error" ? "dot dot-error" : "dot";
 
   return (
-    <div
-      className={isFullscreen ? "preview-fullscreen" : ""}
-      style={{
-        marginTop: "2rem",
-        border: "1px solid rgba(148, 163, 184, 0.12)",
-        borderRadius: "1.5rem",
-        background: "rgba(15, 23, 42, 0.95)",
-        boxShadow: "0 24px 80px rgba(0, 0, 0, 0.25)",
-        overflow: "hidden",
-        position: isFullscreen ? "fixed" : "relative",
-        top: isFullscreen ? 0 : "auto",
-        left: isFullscreen ? 0 : "auto",
-        width: isFullscreen ? "100vw" : "100%",
-        height: isFullscreen ? "100vh" : "auto",
-        zIndex: isFullscreen ? 9999 : "auto",
-        display: "flex",
-        flexDirection: "column",
-        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-      }}
-    >
-      {/* Header Toolbar */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "between",
-          padding: "1rem 1.5rem",
-          background: "rgba(30, 41, 59, 0.5)",
-          borderBottom: "1px solid rgba(148, 163, 184, 0.1)",
-          gap: "1rem",
-          flexWrap: "wrap",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexGrow: 1 }}>
-          <div
-            style={{
-              width: "10px",
-              height: "10px",
-              borderRadius: "50%",
-              background: previewAvailable ? "#10b981" : "#f59e0b",
-              boxShadow: previewAvailable
-                ? "0 0 10px rgba(16, 185, 129, 0.6)"
-                : "0 0 10px rgba(245, 158, 11, 0.6)",
-            }}
-          />
-          <span style={{ fontWeight: 600, fontSize: "0.95rem" }}>
-            {previewAvailable ? "Live Preview" : "Build Preview Required"}
-          </span>
-          {previewAvailable && (
-            <span
-              style={{
-                fontSize: "0.8rem",
-                color: "#94a3b8",
-                background: "rgba(148, 163, 184, 0.1)",
-                padding: "0.2rem 0.6rem",
-                borderRadius: "6px",
-                fontFamily: "monospace",
-              }}
-            >
-              {previewUrl}
-            </span>
-          )}
+    <div className={`pane ${fullscreen ? "pane-fullscreen" : ""}`}>
+      {/* Toolbar */}
+      <div className="pane-bar">
+        <div className="pane-status">
+          <span className={dotClass} />
+          <span>{showStatic && !isLive ? "Static build preview" : statusLabel[server.status]}</span>
         </div>
 
-        {previewAvailable && (
-          <div style={{ display: "flex", gap: "0.5rem" }}>
-            <button
-              onClick={handleRefresh}
-              className="project-link"
-              style={{
-                background: "rgba(148, 163, 184, 0.15)",
-                color: "#e2e8f0",
-                border: "none",
-                padding: "0.45rem 0.85rem",
-                borderRadius: "8px",
-                fontSize: "0.85rem",
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.4rem",
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-              </svg>
-              Refresh
-            </button>
-            <button
-              onClick={() => setIsFullscreen(!isFullscreen)}
-              className="project-link"
-              style={{
-                background: "rgba(148, 163, 184, 0.15)",
-                color: "#e2e8f0",
-                border: "none",
-                padding: "0.45rem 0.85rem",
-                borderRadius: "8px",
-                fontSize: "0.85rem",
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.4rem",
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                {isFullscreen ? (
-                  <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M10 14l-7 7" />
+        <div className="pane-actions">
+          {iframeUrl && (
+            <>
+              <button className="icon-btn" onClick={() => setIframeKey((k) => k + 1)} title="Reload">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8" /><path d="M21 3v5h-5" /></svg>
+              </button>
+              <button className="icon-btn" onClick={() => setFullscreen((f) => !f)} title={fullscreen ? "Exit fullscreen (Esc)" : "Fullscreen"}>
+                {fullscreen ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /></svg>
                 ) : (
-                  <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3" />
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
                 )}
-              </svg>
-              {isFullscreen ? "Exit Full" : "Fullscreen"}
-            </button>
-            <a
-              href={previewUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="project-link"
-              style={{
-                background: "rgba(59, 130, 246, 0.18)",
-                color: "#bfdbfe",
-                padding: "0.45rem 0.85rem",
-                borderRadius: "8px",
-                fontSize: "0.85rem",
-                textDecoration: "none",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.4rem",
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" />
-              </svg>
-              New Tab
-            </a>
-          </div>
-        )}
+              </button>
+              <a className="icon-btn" href={iframeUrl} target="_blank" rel="noreferrer" title="Open in new tab">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" /></svg>
+              </a>
+            </>
+          )}
+          {showStatic && !isLive && (
+            <button className="btn btn-ghost btn-sm" onClick={() => setShowStatic(false)}>Close</button>
+          )}
+          {(isLive || isWorking) && (
+            <button className="btn btn-danger btn-sm" onClick={stop} disabled={busy}>Stop</button>
+          )}
+        </div>
       </div>
 
-      {/* Main Content Pane */}
-      <div
-        style={{
-          flexGrow: 1,
-          height: isFullscreen ? "calc(100vh - 57px)" : height,
-          position: "relative",
-          background: "#0d1117",
-        }}
-      >
-        {previewAvailable ? (
-          <iframe
-            key={iframeKey}
-            src={previewUrl}
-            style={{
-              width: "100%",
-              height: "100%",
-              border: "none",
-              background: "#ffffff", // white background for the web app inside iframe
-            }}
-            sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
-            loading="lazy"
-          />
+      {/* Body */}
+      <div className="pane-body" style={{ height: fullscreen ? "calc(100vh - 52px)" : height }}>
+        {iframeUrl ? (
+          <iframe key={iframeKey} src={iframeUrl} className="pane-iframe" title={`${projectId} preview`} />
+        ) : isWorking || server.status === "error" ? (
+          <div className="pane-console">
+            <div className="console-head">
+              {isWorking ? <span className="spinner" /> : <span className="console-x">!</span>}
+              <div>
+                <strong>{server.status === "error" ? "Couldn't start this project" : statusLabel[server.status]}</strong>
+                <p>
+                  {server.status === "installing"
+                    ? "Installing missing packages with this project's package manager."
+                    : server.status === "starting"
+                    ? "Compiling. The preview opens automatically when it's ready."
+                    : server.error}
+                </p>
+              </div>
+            </div>
+            <pre ref={logRef} className="console-log">
+              {(server.logs && server.logs.length ? server.logs : ["waiting for output…"]).join("\n")}
+            </pre>
+            {server.status === "error" && (
+              <div className="console-actions">
+                <button className="btn btn-primary btn-sm" onClick={start} disabled={busy}>Try again</button>
+                {initialPreviewPath && (
+                  <button className="btn btn-ghost btn-sm" onClick={() => setShowStatic(true)}>View last build instead</button>
+                )}
+              </div>
+            )}
+          </div>
         ) : (
-          <div
-            style={{
-              width: "100%",
-              height: "100%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "2rem",
-              textAlign: "center",
-            }}
-          >
-            {isBuilding ? (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1.5rem" }}>
-                <div
-                  style={{
-                    width: "48px",
-                    height: "48px",
-                    border: "4px solid rgba(59, 130, 246, 0.2)",
-                    borderTopColor: "#3b82f6",
-                    borderRadius: "50%",
-                    animation: "spin 1s linear infinite",
-                  }}
-                />
-                <style jsx global>{`
-                  @keyframes spin {
-                    to { transform: rotate(360deg); }
-                  }
-                `}</style>
-                <div>
-                  <h3 style={{ margin: "0 0 0.5rem" }}>Compiling App...</h3>
-                  <p style={{ color: "#94a3b8", fontSize: "0.95rem", maxWidth: "45ch", margin: 0 }}>
-                    Running `npm install` and `npm run build` inside your project directory. This may take up to a minute...
-                  </p>
-                </div>
-              </div>
+          <div className="pane-empty">
+            {canLaunch ? (
+              <>
+                <button className="launch-btn" onClick={start} disabled={busy}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z" /></svg>
+                </button>
+                <span className="launch-label">Launch</span>
+                <span className="launch-hint">Runs on your PC. Installs anything missing automatically.</span>
+              </>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1.25rem", maxWidth: "500px" }}>
-                <div
-                  style={{
-                    width: "64px",
-                    height: "64px",
-                    borderRadius: "50%",
-                    background: "rgba(245, 158, 11, 0.1)",
-                    color: "#f59e0b",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 style={{ margin: "0 0 0.5rem" }}>Preview Not Compiled</h3>
-                  <p style={{ color: "#cbd5e1", fontSize: "0.95rem", margin: "0 0 1.5rem" }}>
-                    {hasPackageJson
-                      ? "This project is a React/Web application but hasn't built a production release yet. Compile the project to activate the live preview."
-                      : "This folder does not contain a package.json build script or index.html to preview directly. Run the app externally using VS Code or explorer."}
-                  </p>
-                </div>
-
-                {hasPackageJson && (
-                  <button
-                    onClick={handleBuild}
-                    className="project-link vscode-btn"
-                    style={{
-                      border: "none",
-                      outline: "none",
-                      cursor: "pointer",
-                      padding: "0.75rem 1.5rem",
-                      borderRadius: "999px",
-                      fontSize: "1rem",
-                      fontWeight: "600",
-                      background: "rgba(59, 130, 246, 0.2)",
-                      color: "#60a5fa",
-                      borderWidth: "1px",
-                      borderStyle: "solid",
-                      borderColor: "rgba(59, 130, 246, 0.4)",
-                      boxShadow: "0 4px 14px rgba(59, 130, 246, 0.15)",
-                    }}
-                  >
-                    Build & Preview App
-                  </button>
-                )}
-
-                {error && (
-                  <div
-                    style={{
-                      marginTop: "1.5rem",
-                      padding: "1rem",
-                      background: "rgba(239, 68, 68, 0.1)",
-                      border: "1px solid rgba(239, 68, 68, 0.3)",
-                      color: "#fecaca",
-                      borderRadius: "8px",
-                      fontSize: "0.88rem",
-                      textAlign: "left",
-                      width: "100%",
-                      maxHeight: "150px",
-                      overflowY: "auto",
-                      fontFamily: "monospace",
-                      whiteSpace: "pre-wrap",
-                    }}
-                  >
-                    <strong>Build Error:</strong> {error}
-                  </div>
-                )}
-              </div>
+              <span className="launch-hint">
+                {initialPreviewPath
+                  ? "This project has a saved build you can preview."
+                  : "No dev or start script found for this project."}
+              </span>
+            )}
+            {initialPreviewPath && (
+              <button className="btn btn-ghost btn-sm" style={{ marginTop: "0.9rem" }} onClick={() => setShowStatic(true)}>
+                Or view existing build
+              </button>
             )}
           </div>
         )}

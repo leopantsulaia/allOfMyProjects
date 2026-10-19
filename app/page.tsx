@@ -5,30 +5,24 @@ export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const projects = await getProjectList();
+  const runnable = projects.filter((p) => p.scripts.includes("dev") || p.scripts.includes("start")).length;
+  const built = projects.filter((p) => p.previewPath).length;
 
   return (
     <main className="page-shell">
-      <section className="hero">
+      <header className="top">
         <div>
-          <p className="eyebrow">All Of My Projects Hub</p>
-          <h1>One place for every local project</h1>
-          <p>
-            Browse each app like a website and open project details from a
-            single portal. Click any card to explore the app and launch it.
-          </p>
+          <h1>All of my projects<span>.</span></h1>
+          <p>Hit play on any project to run it on this machine. Missing dependencies get installed automatically.</p>
         </div>
-      </section>
+        <div className="stats">
+          <div className="stat"><strong>{projects.length}</strong><span>Projects</span></div>
+          <div className="stat"><strong>{runnable}</strong><span>Runnable</span></div>
+          <div className="stat"><strong>{built}</strong><span>Built</span></div>
+        </div>
+      </header>
 
-      <section className="content-block">
-        <div className="section-header">
-          <div>
-            <p className="eyebrow">Discovered projects</p>
-            <h2>Projects found in the workspace</h2>
-          </div>
-          <span className="tag status-pill">{projects.length} projects</span>
-        </div>
-        <ProjectGrid projects={projects} />
-      </section>
+      <ProjectGrid projects={projects} />
     </main>
   );
 }

@@ -16,15 +16,6 @@ export type ProjectInfo = {
   previewPath?: string;
 };
 
-const projectHints = [
-  "React",
-  "Next.js",
-  "TypeScript",
-  "JavaScript",
-  "Canvas",
-  "Python",
-];
-
 function looksLikeProject(folderPath: string) {
   const indicators = [
     "package.json",
@@ -78,7 +69,6 @@ function getPreviewPath(fullPath: string) {
     "build/index.html",
     "dist/index.html",
     "out/index.html",
-    "public/index.html",
     "build/index.htm",
     "index.html",
     "index.htm",
@@ -91,16 +81,62 @@ function getPreviewPath(fullPath: string) {
 
 export async function getProjectList(): Promise<ProjectInfo[]> {
   const workspaceRoot = path.resolve(process.cwd(), "..");
-  const folderNames = fs
-    .readdirSync(workspaceRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .filter((name) => name !== "allOfMyProjects" && !name.startsWith("."));
+  const ignoredFolders = new Set([
+    "allOfMyProjects",
+    "azure",
+    "__pycache__",
+    "copy",
+    "trash",
+    ".git",
+    "node_modules",
+    ".next",
+    "build",
+    "dist",
+    "out",
+    "coverage",
+  ]);
 
-  const projects = folderNames
-    .map((folder) => {
-      const fullPath = path.join(workspaceRoot, folder);
-      if (!looksLikeProject(fullPath)) return null;
+  function findProjectFolders(parentPath: string): string[] {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(parentPath, { withFileTypes: true });
+    } catch (error) {
+      console.warn(`Could not inspect project folder "${parentPath}".`, error);
+      return [];
+    }
+
+    return entries
+      .filter(
+        (entry) =>
+          entry.isDirectory() &&
+          !ignoredFolders.has(entry.name) &&
+          !entry.name.startsWith("."),
+      )
+      .flatMap((entry) => {
+        const fullPath = path.join(parentPath, entry.name);
+        const packageJsonPath = path.join(fullPath, "package.json");
+        const pkg = fs.existsSync(packageJsonPath)
+          ? readJson(packageJsonPath)
+          : null;
+        const scripts =
+          pkg?.scripts && typeof pkg.scripts === "object"
+            ? (pkg.scripts as Record<string, unknown>)
+            : {};
+        const hasRunnableScript = ["dev", "start", "build"].some(
+          (script) => typeof scripts[script] === "string",
+        );
+
+        if (looksLikeProject(fullPath) && (!pkg || hasRunnableScript)) {
+          return [fullPath];
+        }
+
+        return findProjectFolders(fullPath);
+      });
+  }
+
+  const projects = findProjectFolders(workspaceRoot)
+    .map((fullPath) => {
+      const folder = path.relative(workspaceRoot, fullPath);
 
       const pkg = fs.existsSync(path.join(fullPath, "package.json"))
         ? readJson(path.join(fullPath, "package.json"))
@@ -141,9 +177,13 @@ export async function getProjectList(): Promise<ProjectInfo[]> {
       const liveUrlGuess = detectLiveUrl(pkg);
       const previewPath = getPreviewPath(fullPath);
       const folderUrl = pathToFileURL(fullPath).href;
+      const id = folder
+        .split(path.sep)
+        .map((segment) => segment.toLowerCase().replace(/\s+/g, "-"))
+        .join("--");
 
       const project: ProjectInfo = {
-        id: folder.toLowerCase().replace(/\s+/g, "-"),
+        id,
         name: pkg?.name ? String(pkg.name) : folder,
         description: pkg?.description
           ? String(pkg.description)
@@ -153,7 +193,7 @@ export async function getProjectList(): Promise<ProjectInfo[]> {
         folderUrl,
         tags: Array.from(tags).length
           ? Array.from(tags).map(normalizeTag)
-          : [projectHints[Math.floor(Math.random() * projectHints.length)]],
+          : ["Local project"],
         status: "Detected",
         scripts: pkg
           ? Object.keys((pkg.scripts as Record<string, string>) || {})
@@ -163,8 +203,7 @@ export async function getProjectList(): Promise<ProjectInfo[]> {
       };
 
       return project;
-    })
-    .filter((entry): entry is ProjectInfo => entry !== null);
+    });
 
   return projects.sort((a, b) => a.name.localeCompare(b.name));
 }

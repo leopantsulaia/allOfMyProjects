@@ -1,0 +1,94 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build dashboard",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Inspect widget dependency counts",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"-e",
+				"const fs=require('fs'),path=require('path');const root=path.resolve(process.cwd(),'..');const ignore=new Set(['allOfMyProjects','azure','__pycache__','copy','trash','.git','node_modules','.next','build','dist','out','coverage']);function looks(p){try{return ['package.json','pyproject.toml','README.md','src','app','public'].some(x=>fs.readdirSync(p).includes(x))}catch{return false}}function walk(p){return fs.readdirSync(p,{withFileTypes:true}).filter(e=>e.isDirectory()&&!ignore.has(e.name)&&!e.name.startsWith('.')).flatMap(e=>{const f=path.join(p,e.name);const file=path.join(f,'package.json');let j=null;try{if(fs.existsSync(file))j=JSON.parse(fs.readFileSync(file,'utf8'))}catch{}const s=j?.scripts||{};if(looks(f)&&(!j||['dev','start','build'].some(x=>typeof s[x]==='string')))return[{folder:path.relative(root,f),name:j?.name||path.relative(root,f),deps:Object.keys(j?.dependencies||{}).length,devDeps:Object.keys(j?.devDependencies||{}).length,modules:fs.existsSync(path.join(f,'node_modules')),scripts:Object.keys(s),mgr:j?.packageManager||'',lock:['package-lock.json','npm-shrinkwrap.json','pnpm-lock.yaml','yarn.lock','bun.lock','bun.lockb'].filter(x=>fs.existsSync(path.join(f,x))).join(',')}];return walk(f)})}console.log(JSON.stringify(walk(root).sort((a,b)=>a.name.localeCompare(b.name)),null,2))"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Inspect widget dependencies reverse",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"-e",
+				"const fs=require(\"fs\"),path=require(\"path\");const root=path.resolve(process.cwd(),\"..\");const ignore=new Set([\"allOfMyProjects\",\"azure\",\"__pycache__\",\"copy\",\"trash\",\".git\",\"node_modules\",\".next\",\"build\",\"dist\",\"out\",\"coverage\"]);function looks(p){try{return [\"package.json\",\"pyproject.toml\",\"README.md\",\"src\",\"app\",\"public\"].some(x=>fs.readdirSync(p).includes(x))}catch{return false}}function walk(p){return fs.readdirSync(p,{withFileTypes:true}).filter(e=>e.isDirectory()&&!ignore.has(e.name)&&!e.name.startsWith(\".\")).flatMap(e=>{const f=path.join(p,e.name),file=path.join(f,\"package.json\");let j=null;try{if(fs.existsSync(file))j=JSON.parse(fs.readFileSync(file,\"utf8\"))}catch{}const s=j?.scripts||{};if(looks(f)&&(!j||[\"dev\",\"start\",\"build\"].some(x=>typeof s[x]===\"string\")))return[{folder:path.relative(root,f),name:j?.name||path.relative(root,f),deps:Object.keys(j?.dependencies||{}).length,devDeps:Object.keys(j?.devDependencies||{}).length,modules:fs.existsSync(path.join(f,\"node_modules\")),scripts:Object.keys(s),mgr:j?.packageManager||\"\",lock:[\"package-lock.json\",\"npm-shrinkwrap.json\",\"pnpm-lock.yaml\",\"yarn.lock\",\"bun.lock\",\"bun.lockb\"].filter(x=>fs.existsSync(path.join(f,x))).join(\",\")}];return walk(f)})}console.log(JSON.stringify(walk(root).sort((a,b)=>a.name.localeCompare(b.name)),null,2))"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "List widget launch order",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"-e",
+				"const fs=require(\"fs\"),path=require(\"path\");const root=path.resolve(process.cwd(),\"..\"),ignore=new Set([\"allOfMyProjects\",\"azure\",\"__pycache__\",\"copy\",\"trash\",\".git\",\"node_modules\",\".next\",\"build\",\"dist\",\"out\",\"coverage\"]);function looks(p){try{return [\"package.json\",\"pyproject.toml\",\"README.md\",\"src\",\"app\",\"public\"].some(x=>fs.readdirSync(p).includes(x))}catch{return false}}function walk(p){return fs.readdirSync(p,{withFileTypes:true}).filter(e=>e.isDirectory()&&!ignore.has(e.name)&&!e.name.startsWith(\".\")).flatMap(e=>{const f=path.join(p,e.name),file=path.join(f,\"package.json\");let j=null;try{if(fs.existsSync(file))j=JSON.parse(fs.readFileSync(file,\"utf8\"))}catch{}const s=j?.scripts||{};if(looks(f)&&(!j||[\"dev\",\"start\",\"build\"].some(x=>typeof s[x]===\"string\")))return[{folder:path.relative(root,f),name:j?.name||path.relative(root,f),deps:Object.keys(j?.dependencies||{}).length,devDeps:Object.keys(j?.devDependencies||{}).length,scripts:Object.keys(s).join(\",\")}];return walk(f)})}console.log(walk(root).sort((a,b)=>a.name.localeCompare(b.name)).reverse().map(p=>[p.name,p.folder,p.deps,p.devDeps,p.scripts].join(\" | \")).join(\"\\n\"))"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Start dashboard for widget runs",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"dev"
+			],
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Run last dashboard widgets",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"-e",
+				"const fs=require(\"fs\"),path=require(\"path\");const base=\"http://127.0.0.1:3000\",root=path.resolve(process.cwd(),\"..\");const widgets=[\"EarthJS\",\"BurgerWebsite\\\\bangkok-clone\",\"BurgerWebsite\\\\burger-app-gmn\"];(async()=>{for(const folder of widgets){const full=path.resolve(root,folder),pkg=JSON.parse(fs.readFileSync(path.join(full,\"package.json\"),\"utf8\")),id=folder.split(path.sep).map(s=>s.toLowerCase().replace(/\\\\s+/g,\"-\")).join(\"--\"),count=Object.keys(pkg.dependencies||{}).length;console.log(\"START \"+folder+\" [\"+count+\" dependencies]\");try{let r=await fetch(base+\"/api/server\",{method:\"POST\",headers:{\"Content-Type\":\"application/json\"},body:JSON.stringify({action:\"start\",projectId:id,folderPath:full})}),state=await r.json();if(!r.ok)throw Error(state.error||\"start request failed \"+r.status);for(let i=0;i<190&&[\"installing\",\"starting\"].includes(state.status);i++){await new Promise(resolve=>setTimeout(resolve,1000));r=await fetch(base+\"/api/server?projectId=\"+encodeURIComponent(id));state=await r.json()}console.log(\"RESULT \"+JSON.stringify({folder,status:state.status,url:state.url,error:state.error,logs:(state.logs||[]).slice(-12)}));if(state.status===\"ready\"){const probe=await fetch(state.url,{redirect:\"manual\",signal:AbortSignal.timeout(15000)});console.log(\"HTTP \"+probe.status+\" \"+probe.headers.get(\"content-type\"));await fetch(base+\"/api/server\",{method:\"POST\",headers:{\"Content-Type\":\"application/json\"},body:JSON.stringify({action:\"stop\",projectId:id})})}else{await fetch(base+\"/api/server\",{method:\"POST\",headers:{\"Content-Type\":\"application/json\"},body:JSON.stringify({action:\"stop\",projectId:id})})}}catch(e){console.log(\"FAILED \"+folder+\": \"+e.message);try{await fetch(base+\"/api/server\",{method:\"POST\",headers:{\"Content-Type\":\"application/json\"},body:JSON.stringify({action:\"stop\",projectId:id})})}catch{}}if(count===10){console.log(\"STOPPING at the 10-dependency widget, as requested.\");break}}})().catch(e=>{console.error(e);process.exitCode=1})"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Run remaining last widgets",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"-e",
+				"const fs=require(\"fs\"),path=require(\"path\");const base=\"http://127.0.0.1:3000\",root=path.resolve(process.cwd(),\"..\");const widgets=[[\"BurgerWebsite\",\"bangkok-clone\"],[\"BurgerWebsite\",\"burger-app-gmn\"]];(async()=>{for(const parts of widgets){const folder=parts.join(\"\\\\\"),full=path.join(root,...parts),pkg=JSON.parse(fs.readFileSync(path.join(full,\"package.json\"),\"utf8\")),id=path.relative(root,full).split(path.sep).map(s=>s.toLowerCase().replace(/\\\\s+/g,\"-\")).join(\"--\"),count=Object.keys(pkg.dependencies||{}).length;console.log(\"START \"+folder+\" [\"+count+\" dependencies]\");try{let r=await fetch(base+\"/api/server\",{method:\"POST\",headers:{\"Content-Type\":\"application/json\"},body:JSON.stringify({action:\"start\",projectId:id,folderPath:full})}),state=await r.json();if(!r.ok)throw Error(state.error||\"start request failed \"+r.status);for(let i=0;i<190&&[\"installing\",\"starting\"].includes(state.status);i++){await new Promise(resolve=>setTimeout(resolve,1000));r=await fetch(base+\"/api/server?projectId=\"+encodeURIComponent(id));state=await r.json()}console.log(\"RESULT \"+JSON.stringify({folder,status:state.status,url:state.url,error:state.error,logs:(state.logs||[]).slice(-12)}));if(state.status===\"ready\"){const probe=await fetch(state.url,{redirect:\"manual\",signal:AbortSignal.timeout(15000)});console.log(\"HTTP \"+probe.status+\" \"+probe.headers.get(\"content-type\"));await fetch(base+\"/api/server\",{method:\"POST\",headers:{\"Content-Type\":\"application/json\"},body:JSON.stringify({action:\"stop\",projectId:id})})}else{await fetch(base+\"/api/server\",{method:\"POST\",headers:{\"Content-Type\":\"application/json\"},body:JSON.stringify({action:\"stop\",projectId:id})})}}catch(e){console.log(\"FAILED \"+folder+\": \"+e.message);try{await fetch(base+\"/api/server\",{method:\"POST\",headers:{\"Content-Type\":\"application/json\"},body:JSON.stringify({action:\"stop\",projectId:id})})}catch{}}if(count===10){console.log(\"STOPPING at the 10-dependency widget, as requested.\");break}}})().catch(e=>{console.error(e);process.exitCode=1})"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Confirm widget launch cleanup",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"-e",
+				"const ids=[\"earthjs\",\"burgerwebsite--bangkok-clone\",\"burgerwebsite--burger-app-gmn\"];Promise.all(ids.map(async id=>{const r=await fetch(\"http://127.0.0.1:3000/api/server?projectId=\"+encodeURIComponent(id)),s=await r.json();console.log(id+\": \"+s.status)})).catch(e=>{console.error(e.message);process.exitCode=1})"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}
